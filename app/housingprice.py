@@ -15,10 +15,19 @@ target_column = 'SalePrice'
 
 
 def read_data(path):
+    """
+        path (str): the path to the data
+        :returns datafrane
+    """
     return pd.read_csv(path, index_col='Id')
 
 
 def cont_preprocessing(df, to_drop):
+    """
+        df (pd.Dataframe): the continuous dataframe to be processes
+        to_drop: the columns to be dropped
+        :returns pd.datafrane
+    """
     df = df.select_dtypes(include='number').copy()
     df = df.dropna()
 
@@ -26,6 +35,12 @@ def cont_preprocessing(df, to_drop):
 
 
 def base_preprocessing(df, to_drop):
+    """
+        df (pd.Dataframe): the base dataframe to be processes
+        to_drop: the columns to be dropped
+        :returns pd.datafrane
+    """
+
     df['LotFrontage'] = df['LotFrontage'].fillna(np.mean(df['LotFrontage']))
     df = df.dropna()
     df = drop_cols(df, to_drop)
@@ -34,6 +49,12 @@ def base_preprocessing(df, to_drop):
 
 
 def category_cont_preprocessing(df, to_drop):
+    """
+        df (pd.Dataframe): the final dataframe to be processes
+        to_drop: the columns to be dropped
+        :returns pd.datafrane
+    """
+
     for col in ('GarageYrBlt', 'GarageArea', 'GarageCars'):
         df[col] = df[col].fillna(0)
 
@@ -82,6 +103,12 @@ def category_cont_preprocessing(df, to_drop):
 
 
 def train_preprocessing(df, to_drop, type):
+    """
+        df (pd.Dataframe): the dataframe to be processes
+        to_drop: the columns to be dropped
+        type : the type of processing to perform 1 - continuous 2 - base 3- final
+        :returns datafrane
+    """
     if type == 1:
         return cont_preprocessing(df, to_drop)
     elif type == 2:
@@ -91,6 +118,11 @@ def train_preprocessing(df, to_drop, type):
 
 
 def drop_cols(df, to_drop):
+    """
+        df (pd.Dataframe): the dataframe to be processes
+        to_drop: the columns to be dropped
+        :returns datafrane
+    """
     df = df.drop(columns=to_drop, axis=1)
     df = df.dropna()
 
@@ -98,6 +130,11 @@ def drop_cols(df, to_drop):
 
 
 def one_hot_encoder(df, categorical_cols):
+    """
+        df (pd.Dataframe): the dataframe to be processes
+        categorical_cols : the columns to be fitted for one hot encoder
+        :returns encoded values
+    """
     one_hot = OneHotEncoder(handle_unknown='ignore')
     one_hot = one_hot.fit(df[categorical_cols])
     dump(one_hot, ROOT_DIR / 'models' / 'onehot.pkl')
@@ -106,6 +143,13 @@ def one_hot_encoder(df, categorical_cols):
 
 
 def encode(df, categorical_cols, one_hot):
+    """
+        df (pd.Dataframe): the dataframe to be processes
+        categorical_cols : the columns to be fitted for one hot encoder
+        one_hot : fitted one hot encoder
+        :returns pd.Dataframe
+    """
+
     oh_df = one_hot.transform(df[categorical_cols]).toarray()
     categ_col_name = one_hot.get_feature_names(categorical_cols)
 
@@ -122,6 +166,11 @@ def encode(df, categorical_cols, one_hot):
 
 
 def split_data(df):
+    """
+        df (pd.Dataframe): the dataframe to be processes
+        :returns X, y and the splitted X and y train and test values
+    """
+
     # Split dependant and independant variables
     X, y = df.drop(target_column, axis=1), df[target_column]
 
@@ -132,6 +181,11 @@ def split_data(df):
 
 
 def linear_model(df, X_train, y_train):
+    """
+        df (pd.Dataframe): the dataframe to be processes
+        X_train, Y_train : the train and test data to be fit
+        :returns model
+    """
     model = LinearRegression()
     model.fit(X_train, y_train)
 
@@ -139,6 +193,11 @@ def linear_model(df, X_train, y_train):
 
 
 def xgb_model(X_train, y_train):
+    """
+        df (pd.Dataframe): the dataframe to be processes
+        X_train, Y_train : the train and test data to be fit
+        :returns model
+    """
     model = XGBRegressor(learning_rate=0.01, n_estimators=3460, max_depth=3)
     model.fit(X_train, y_train)
 
@@ -146,6 +205,10 @@ def xgb_model(X_train, y_train):
 
 
 def ols(df):
+    """
+        df (pd.Dataframe): the dataframe to be processes
+        :returns None,Just prints the summary
+    """
     X, y = df.drop(target_column, axis=1), df[target_column]
     X_sm = sm.add_constant(X)
     ols_reg = sm.OLS(y, X_sm).fit()
@@ -153,32 +216,34 @@ def ols(df):
 
 
 def compute_rmsle(y_test: np.ndarray, y_pred: np.ndarray, precision: int = 2) -> float:
+    """
+        y_test: the test data
+        y_pred : the predicted data
+        :returns float
+    """
+
     rmsle = np.sqrt(mean_squared_log_error(y_test, y_pred))
     return round(rmsle, precision)
 
 
 def predict(model, X_test):
+    """
+        model: the model to be predicted
+        X_test : the test data to predict
+        :returns predictions as np array
+    """
+
     y_pred = model.predict(X_test)
     # Replace negative predictions with 0
     y_pred = np.where(y_pred < 0, 0, y_pred)
 
     return y_pred
-
-
-def compute_rmsle(y_test: np.ndarray, y_pred: np.ndarray, precision: int = 2) -> float:
-    rmsle = np.sqrt(mean_squared_log_error(y_test, y_pred))
-    return round(rmsle, precision)
-
-
-def predict(model, X_test):
-    y_pred = model.predict(X_test)
-    # Replace negative predictions with 0
-    y_pred = np.where(y_pred < 0, 0, y_pred)
-
-    return y_pred
-
 
 def cont_inference(inference_df):
+    """
+        inference_df: the inference data
+        :returns pd.Dataframe
+    """
     inference_df = inference_df.select_dtypes(include='number')
     inference_df = inference_df.dropna()
 
@@ -186,6 +251,12 @@ def cont_inference(inference_df):
 
 
 def baseline_inference(inference_df, to_drop):
+    """
+        inference_df: the inference data
+        to_drop : the columns to be dropped
+        :returns pd.Dataframe
+    """
+
     inference_df = inference_df.select_dtypes(include='number')
 
     drop = []
@@ -202,6 +273,10 @@ def baseline_inference(inference_df, to_drop):
 
 
 def category_cont_if_preprocessing(inference_df):
+    """
+        inference_df: the inference data
+        :returns pd.Dataframe
+    """
     for col in ('GarageArea', 'GarageCars'):
         inference_df[col] = inference_df[col].fillna(0)
 
@@ -244,6 +319,12 @@ def category_cont_if_preprocessing(inference_df):
 
 
 def category_cont_inference(inference_df, to_drop):
+    """
+        inference_df: the inference data
+        to_drop : the columns to be dropped
+        :returns pd.Dataframe
+    """
+
     one_hot = load(ROOT_DIR / 'models' / 'onehot.pkl')
 
     drop = []
@@ -267,10 +348,19 @@ def inference(inference_df, to_drop):
 
 
 def predict_inference(df, model):
+    """
+        df: the inference data
+        model : the trained model
+        :returns pd.Dataframe
+    """
     return model.predict(df)
 
 
 def fill_negatives(predictions):
+    """
+        predictions: the inference data
+        :returns array with negative values filled
+    """
     # Check if there is negative predictions, if so get their indexs
     np.where(predictions < 0)
 
@@ -282,6 +372,13 @@ def fill_negatives(predictions):
 
 
 def prepare_submission(inference_df, changed_df, predictions):
+    """
+        inference_df: the inference data
+        changed_df: the processed/changed data to be submitted
+        predictions: the predicted data
+        :returns pd.Dataframe, id_array
+    """
+
     # Assign predictions to target column
     changed_df[target_column] = predictions
 
@@ -297,6 +394,12 @@ def prepare_submission(inference_df, changed_df, predictions):
 
 
 def validate_missing_predictions(submission_df, df_final, final_id):
+    """
+        submission_df: the submission data with missing values to be filled
+        df_final: the final data to be submitted
+        final_id: the id's of submission data data
+        :returns pd.Dataframe with the missing predictions addressed
+    """
     # Validate the number of missing predictions
     submission_df[target_column].isna().sum() == len(final_id) - len(df_final)
 
