@@ -18,7 +18,7 @@ def read_data(path):
     return pd.read_csv(path, index_col='Id')
 
 
-def cont_preprocessing(df):
+def cont_preprocessing(df, to_drop):
     df = df.select_dtypes(include='number').copy()
     df = df.dropna()
 
@@ -79,6 +79,15 @@ def category_cont_preprocessing(df, to_drop):
     df = encode(df, category_cols, one_hot)
 
     return df
+
+
+def train_preprocessing(df, to_drop, type):
+    if type == 1:
+        return cont_preprocessing(df, to_drop)
+    elif type == 2:
+        return base_preprocessing(df, to_drop)
+    elif type == 3:
+        return category_cont_preprocessing(df, to_drop)
 
 
 def drop_cols(df, to_drop):
