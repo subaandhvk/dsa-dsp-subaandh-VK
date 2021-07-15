@@ -1,23 +1,23 @@
+import codecs
+import csv
+import io
 import joblib
-import numpy as np
 import pandas as pd
-from fastapi import FastAPI
+from fastapi import FastAPI, File, UploadFile
 from pydantic import BaseModel
+import json
+from sklearn import preprocessing
 
 """
-Note: you need to run the app from the root folder otherwise the models folder will not be found
-- To run the app
-$ uvicorn serving.model_as_a_service.main:app --reload
+Run application from root folder using the below command 
+$ uvicorn serving.model_as_a_service.app:app --reload
 
-- To make a prediction from terminal
-$ curl -X 'POST' 'http://127.0.0.1:8000/predict_obj' \
-  -H 'accept: application/json' -H 'Content-Type: application/json' \
-  -d '{ "age": 0, "sex": 0, "bmi": 0, "bp": 0, "s1": 0, "s2": 0, "s3": 0, "s4": 0, "s5": 0, "s6": 0 }'
+Run the frontend also this is just the API. Run it from inside the folder
+$ streamlit frontend.py
 """
 
 app = FastAPI()
-model = joblib.load("../../models/diabetes_model.joblib")
-
+model = joblib.load("models/diabetes_rf.pkl")
 
 class DiabetesInfo(BaseModel):
     age: float
@@ -31,26 +31,39 @@ class DiabetesInfo(BaseModel):
     s5: float
     s6: float
 
-
 @app.get("/")
 async def root():
     return {"message": "Hello World"}
 
-"""
-@app.post("/predict_single_patient")
-async def predict_single_patient(
-        age: float, sex: float, bmi: float, bp: float, s1: float, s2: float, s3: float, s4: float, s5: float,
-        s6: float = 18):
-    # age, sex, body_mass_index, average_blood_pressure, total_serum_cholesterol, low_density_lipoproteins,
-    # high_density_lipoproteins, total_cholesterol, possibly_log_of_serum_triglycerides_level, blood_sugar_level
-    model_input_data = np.array([age, sex, bmi, bp, s1, s2, s3, s4, s5, s6]).reshape(1, -1)
-    progression = model.predict(model_input_data)[0]
-    return progression
-"""
+
+@app.get("/model_meta")
+async def get_model_meta_data():
+    return model.get_params()
+
+@app.post("/predict_single")
+async def predict_single_patient(diabetes_info: DiabetesInfo):
+    model_input_data = [diabetes_info.age, diabetes_info.sex, diabetes_info.bmi, diabetes_info.bp, diabetes_info.s1,
+                        diabetes_info.s2, diabetes_info.s3, diabetes_info.s4, diabetes_info.s5, diabetes_info.s6]
+
+    df = pd.DataFrame([model_input_data], columns=['age', 'sex', 'bmi', 'bp', 's1', 's2', 's3', 's4', 's5', 's6'])
+
+    df = preprocessing.normalize(df)
+    prediction = model.predict(df)
+
+    return {'result': prediction[0]}
+
 
 @app.post("/predict")
-async def predict_diabetes_progress_1(diabetes_info: DiabetesInfo):
-    # print(diabetes_info.dict())
-    model_input_data = pd.DataFrame([diabetes_info.dict()])
-    progression = model.predict(model_input_data)[0]
-    return progression
+async def predict_file(file: UploadFile = File(...)):
+    read = await file.read()
+
+    converted = str(read, 'utf-8')
+    converted = converted.replace('\r', '')
+    patient_diabetes_df = pd.read_csv(io.StringIO(converted), lineterminator='\n', index_col=0)
+    print(patient_diabetes_df.head())
+
+    patient_diabetes_df = patient_diabetes_df.drop(['target'], axis=1)
+    progression = model.predict(patient_diabetes_df)
+    progression = list(progression)
+
+    return {'result': progression}

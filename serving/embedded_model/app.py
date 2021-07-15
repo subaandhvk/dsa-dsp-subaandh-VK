@@ -1,8 +1,6 @@
 import pandas as pd
 import streamlit as st
 from sklearn import preprocessing
-
-################### Display stuff
 from inference import predict
 
 st.title('Diabetes Prediction App')
@@ -44,9 +42,9 @@ if submitted:
 csv_file = st.file_uploader('Choose a CSV file')
 if csv_file:
     st.write('filename : ', csv_file.name)
-    patient_diabetes_informations_df = pd.read_csv(csv_file)
+    patient_diabetes_informations_df = pd.read_csv(csv_file, index_col=0)
     print(patient_diabetes_informations_df)
-    patient_diabetes_informations_df = patient_diabetes_informations_df.drop(['target', 'Unnamed: 0'], axis=1)
+    patient_diabetes_informations_df = patient_diabetes_informations_df.drop(['target'], axis=1)
     st.write(patient_diabetes_informations_df)
 
 # execute model
